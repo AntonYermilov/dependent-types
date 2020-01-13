@@ -1,0 +1,95 @@
+\import lect02 \hiding (+,*)
+\open Nat \hiding (-,div) -- Здесь лежат + и *.
+
+-- I. Задания на рекурсивные определения.
+
+-- 1. Определите функцию if, аналогичную следующей функции:
+{- Haskell:
+   if :: Bool -> a -> a -> a
+   if True t _ = t
+   if False _ e = e
+-}
+
+\func if {A : \Type} (cond : Bool) (then : A) (else : A) : A \elim cond
+  | true => then
+  | false => else
+
+\func test_if_true : if true 1 0 = 1 => idp
+\func test_if_false : if false true false = false => idp
+
+-- 2. Определите || через if.
+
+\func \infixr 2 || (x y : Bool) : Bool => if x x y
+
+-- 3. Определите возведение в степень и факториал для натуральных чисел.
+
+\func \infixr 8 ^ (x y : Nat) : Nat \elim y
+  | 0 => 1
+  | suc y => (x ^ y) * x
+
+\func fac (x : Nat) : Nat
+  | 0 => 1
+  | suc x => suc x * fac x
+
+-- 4. Определите mod и gcd.
+
+\func mod (x y : Nat) : Nat => x - (x `div` y) * y
+
+\func gcd (x y : Nat) : Nat => gcd' x x y
+  \where
+    \func gcd' (s x y : Nat) : Nat \elim s
+      | 0 => y
+      | suc s => gcd' s y (x `mod` y)
+
+\func test_gcd : gcd 8 12 = 4 => idp
+\func test_gcd' : gcd 7 13 = 1 => idp
+\func test_gcd'' : gcd 0 5 = 5 => idp
+\func test_gcd''' : gcd 5 0 = 5 => idp
+
+-- 5. Определите (полиморфный) reverse для списков.
+\func reverse {A : \Type} (list : List A) : List A \elim list
+  | nil => nil
+  | cons a l => reverse' a nil l
+    \where
+      \func reverse' {A : \Type} (a : A) (rev_pref suff : List A) : List A \elim suff
+        | nil => cons a rev_pref
+        | cons b suff => reverse' b (cons a rev_pref) suff
+
+\func test_reverse : reverse (cons 1 (cons 2 (cons 3 nil))) = cons 3 (cons 2 (cons 1 nil)) => idp
+
+-- 6. Реализуйте любой (but choose wisely) алгоритм сортировки. Функцию сравнения можно принимать в качестве аргумента.
+\func merge {A : \Type} (less : A -> A -> Bool) (a : List A) (b : List A) : List A \elim a, b
+  | nil, b => b
+  | a, nil => a
+  | cons a la, cons b lb => if (less a b) (cons a (merge less la (cons b lb))) (cons b (merge less (cons a la) lb))
+
+\func test_merge : merge (<) (cons 1 (cons 3 nil)) (cons 2 (cons 4 nil)) = (cons 1 (cons 2 (cons 3 (cons 4 nil)))) => idp
+
+\func odd_elems {A : \Type} (list : List A) : List A \elim list
+  | nil => nil
+  | cons a nil => cons a nil
+  | cons a (cons b l) => cons a (odd_elems l)
+
+\func test_odd_elems : odd_elems (cons 1 (cons 2 (cons 3 (cons 4 nil)))) = cons 1 (cons 3 nil) => idp
+
+\func even_elems {A : \Type} (list : List A) : List A \elim list
+  | nil => nil
+  | cons a l => odd_elems l
+
+\func test_even_elems : even_elems (cons 1 (cons 2 (cons 3 (cons 4 nil)))) = cons 2 (cons 4 nil) => idp
+
+\func len {A : \Type} (list : List A) : Nat \elim list
+  | nil => 0
+  | cons a l => 1 + (len l)
+
+\func test_len : len (cons 1 (cons 2 (cons 3 (cons 4 nil)))) = 4 => idp
+
+\func sort {A : \Type} (less : A -> A -> Bool) (list : List A) : List A => sort' (len list) less list
+  \where
+    \func sort' {A : \Type} (dep : Nat) (less : A -> A -> Bool) (list : List A) : List A \elim dep, list
+      | 0, _ => nil
+      | _, cons a nil => cons a nil
+      | suc dep, list => merge less (sort' dep less (odd_elems list)) (sort' dep less (even_elems list))
+
+\func test_sort : sort (<) (cons 1 nil) = cons 1 nil => idp
+\func test_sort' : sort (<) (cons 5 (cons 1 (cons 4 (cons 3 (cons 2 nil))))) = cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil)))) => idp
