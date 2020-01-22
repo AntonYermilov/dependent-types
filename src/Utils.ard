@@ -1,0 +1,61 @@
+\open Nat
+
+-- Равенства
+
+\func pmap {A B : \Type} (f : A -> B) {a a' : A} (p : a = a') : f a = f a' => path (\lam i => f (p @ i))
+
+-- Either
+
+\data Either (A B : \Type) | inl A | inr B
+
+-- Bool
+
+\data Bool | true | false
+
+\func not (x : Bool) : Bool
+  | true => false
+  | false => true
+
+\func \infixr 3 && (x y : Bool) : Bool \elim x
+  | true => y
+  | false => false
+
+\func \infixr 2 || (x y : Bool) : Bool \elim x
+  | true => true
+  | false => y
+
+\func T (b : Bool) : \Type
+  | true => \Sigma
+  | false => Empty
+
+-- List
+
+\data List (A : \Type) | nil | cons A (List A)
+
+\func \infixl 6 ++ {A : \Type} (xs ys : List A) : List A \elim xs
+  | nil => ys
+  | cons x xs => cons x (xs ++ ys)
+
+\func length {A : \Type} (xs : List A) : Nat
+  | nil => 0
+  | cons _ xs => suc (length xs)
+
+-- Vec
+
+\data Vec (A : \Type) (n : Nat) \elim n
+  | zero => vnil
+  | suc n => vcons A (Vec A n)
+
+\func \infixl 4 v++ {A : \Type} {n m : Nat} (xs : Vec A n) (ys : Vec A m) : Vec A (m + n) \elim n, xs
+  | 0, vnil => ys
+  | suc n, vcons x xs => vcons x (xs v++ ys)
+
+-- Empty
+
+\data Empty
+
+\func absurd {A : \Type} (e : Empty) : A
+
+-- Maybe
+
+\data Maybe (A : \Type) | nothing | just A

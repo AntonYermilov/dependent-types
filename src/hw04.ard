@@ -1,0 +1,108 @@
+\import Utils
+\import CustomUtils(apply, replicate, map, zipMap, dot)
+\import lect04
+
+-- 1. Напишите функцию lookup, которая принимает List A и натуральное число и возвращает элемент по заданому индексу.
+--    В общем случае эту функцию определить невозможно, т.к. индекс может быть больше, чем число элементов в списке.
+--    Поэтому эта функция должна дополнительно еще принимать доказательство того, что индекс находится в допустимых границах, в виде T (n < length xs).
+
+\func \infix 4 < (x y : Nat) : Bool
+  | 0, 0 => false
+  | 0, suc y => true
+  | suc x, 0 => false
+  | suc x, suc y => x < y
+
+\func lookup {A : \Type} (n : Nat) (xs : List A) (proof : T (n < length xs)) : A \elim n, xs, proof
+  | 0, cons x _, p => x
+  | suc n, cons x xs, p => lookup n xs p
+
+-- 2. Реализуйте аналоги функции replicate для vec и Vec (эта функция создает список заданной длины, состоящий из повторений данного элемента).
+\func replicate' {A : \Type} (x : A) (n : Nat) : vec A n \elim n
+  | 0 => ()
+  | suc n => (x, replicate' x n)
+
+\func replicate'' {A : \Type} (x : A) (n : Nat) : Vec A n \elim n
+  | 0 => vnil
+  | suc n => vcons x (replicate'' x n)
+
+-- 3. Реализуйте аналоги функции map для vec и Vec.
+\func map' {A B : \Type} {n : Nat} (f : A -> B) (xs : vec A n) : vec B n \elim n, xs
+  | 0, () => ()
+  | suc n, (x, xs) => ((f x), map' f xs)
+
+\func map'' {A B : \Type} {n : Nat} (f : A -> B) (xs : Vec A n) : Vec B n \elim n, xs
+  | 0, vnil => vnil
+  | suc n, vcons x xs => vcons (f x) (map'' f xs)
+
+-- 4. Реализуйте аналоги функции zipWith для vec и Vec.
+--    Функция должна принимать вектора одинаковой длины.
+
+\func zipWith' {A B : \Type} {n : Nat} (xs : vec A n) (ys : vec B n) : vec (\Sigma A B) n  \elim n, xs, ys
+  | 0, (), () => ()
+  | suc n, (x, xs), (y, ys) => ((x, y), zipWith' xs ys)
+
+\func zipWith'' {A B : \Type} {n : Nat} (xs : Vec A n) (ys : Vec B n) : Vec (\Sigma A B) n \elim n, xs, ys
+  | 0, vnil, vnil => vnil
+  | suc n, vcons x xs, vcons y ys => vcons (x, y) (zipWith'' xs ys)
+
+-- 5. Функции Fin n → A соответствуют спискам элементов A длины n.
+--    Функция, преобразующая Vec A n в Fin n → A, была реализована на лекции.
+--    Реализуйте обратную функцию.
+
+\func coin {A : \Type} {n : Nat} (f : Fin n -> A) : Vec A n \elim n
+  | 0 => vnil
+  | suc n => vcons (f fzero) (coin (\lam x => f (fsuc x)))
+
+-- 6. Определите тип матриц и ряд функций над ними.
+
+\func Mat (A : \Type) (n m : Nat) : \Type => Vec (Vec A m) n
+
+-- диагональная матрица с элементами e на диагонали и z на остальных позициях.
+
+\func diag {A : \Type} (z e : A) (n : Nat) : Mat A n n \elim n
+  | 0 => vnil
+  | suc n => vcons (vcons e (replicate z n)) (zipMap apply (replicate (vcons z) n) (diag z e n))
+
+-- транспонирование матриц
+
+\func transpose {A : \Type} {n m : Nat} (M : Mat A n m) : Mat A m n \elim n, M
+  | 0, _ => replicate vnil m
+  | suc n, vcons x xs => zipMap apply (map vcons x) (transpose xs)
+
+-- сложение матриц
+
+\func matAdd {A : \Type} {n m : Nat} (add : A -> A -> A) (M N : Mat A n m) : Mat A n m \elim n, M, N
+  | 0, _, _ => vnil
+  | suc n, vcons rowM M, vcons rowN N => vcons (zipMap add rowM rowN)  (matAdd add M N)
+
+-- умножение матриц, z ─ нейтральный элемент по сложению
+
+\func matMul {A : \Type} {n m k : Nat} (z : A) (add mul : A -> A -> A) (M : Mat A n m) (N : Mat A m k) : Mat A n k \elim n, M
+  | 0, _ => vnil
+  | suc n, vcons x xs => vcons (map (dot z add mul x) (transpose N)) (matMul z add mul xs N)
+
+-- 7. Определите тип CTree A n полных бинарных деревьев высоты ровно n, которые хранят элементы только во внутренних узлах, но не в листьях.
+--    Высота листа равна 0.
+
+\data CTree (A : \Type) (n : Nat) \elim n
+  | 0 => CLeaf
+  | suc n => CNode A (CTree A n) (CTree A n)
+
+-- 8. Определите тип Tree A n бинарных деревьев высоты не больше n, которые хранят элементы только во внутренних узлах, но не в листьях.
+--    Высота листа равна 0.
+
+\data Tree (A : \Type) (n : Nat) \elim n
+  | _ => Leaf
+  | suc n => Node A (Tree A n) (Tree A n)
+
+\func tree : Tree Nat 2 => Node 5 (Node 2 Leaf Leaf) Leaf
+
+-- определите функцию, возвращающую высоту дерева.
+
+\func max {n : Nat} (a b : Fin n) : Fin n =>
+  \case (toNat a) < (toNat b) \with { true => b | false => a}
+
+\func height {A : \Type} {n : Nat} (t : Tree A n) : Fin (suc n) \elim n, t
+  | 0, _ => fzero
+  | _, Leaf => fzero
+  | suc n, Node _ l r => fsuc (max (height l) (height r))

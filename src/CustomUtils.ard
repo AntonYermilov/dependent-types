@@ -1,0 +1,31 @@
+\import Utils
+
+\func id {A : \Type} (x : A) : A => x
+
+\func apply {A B : \Type} (f : A -> B) (x : A) : B => f x
+
+\func zip {A B : \Type} {n : Nat} (xs : Vec A n) (ys : Vec B n) : Vec (\Sigma A B) n \elim n, xs, ys
+  | 0, vnil, vnil => vnil
+  | suc n, vcons x xs, vcons y ys => vcons (x, y) (zip xs ys)
+
+\func map {A B : \Type} {n : Nat} (f : A -> B) (xs : Vec A n) : Vec B n \elim n, xs
+  | 0, vnil => vnil
+  | suc n, vcons x xs => vcons (f x) (map f xs)
+
+\func replicate {A : \Type} (x : A) (n : Nat) : Vec A n \elim n
+  | 0 => vnil
+  | suc n => vcons x (replicate x n)
+
+\func foldr {A B : \Type} {n : Nat} (f : A -> B -> B) (z : B) (vec : Vec A n) : B \elim n, vec
+  | 0, _ => z
+  | suc n, vcons x xs => f x (foldr f z xs)
+
+\func foldl {A B : \Type} {n : Nat} (f : B -> A -> B) (z : B) (vec : Vec A n) : B \elim n, vec
+  | 0, _ => z
+  | suc n, vcons x xs => foldl f (f z x) xs
+
+\func uncurry {A B C : \Type} (f : A -> B -> C) (x : \Sigma A B) : C => f x.1 x.2
+
+\func zipMap {A B C : \Type} {n : Nat} (op : A -> B -> C) (xs : Vec A n) (ys : Vec B n) : Vec C n => map (uncurry op) (zip xs ys)
+
+\func dot {A : \Type} {n : Nat} (z : A) (add mul : A -> A -> A) (xs ys : Vec A n) => foldr add z (zipMap mul xs ys)

@@ -1,0 +1,26 @@
+\import Utils
+\import lect04
+\import hw04 \hiding (lookup)
+
+\func vec1 : Vec Nat 2 => vcons 1 (vcons 2 vnil)
+\func vec2 : Vec Nat 2 => vcons 3 (vcons 4 vnil)
+\func vec3 : Vec Nat 2 => vcons 4 (vcons 3 vnil)
+\func vec4 : Vec Nat 2 => vcons 2 (vcons 1 vnil)
+\func vec5 : Vec Nat 2 => vcons 5 (vcons 5 vnil)
+\func vec6 : Vec Nat 2 => vcons 1 (vcons 0 vnil)
+\func vec7 : Vec Nat 2 => vcons 0 (vcons 1 vnil)
+\func vec8 : Vec Nat 2 => vcons 1 (vcons 3 vnil)
+\func vec9 : Vec Nat 2 => vcons 2 (vcons 4 vnil)
+
+\func matA : Mat Nat 2 2 => vcons vec1 (vcons vec2 vnil)
+\func matB : Mat Nat 2 2 => vcons vec3 (vcons vec4 vnil)
+\func matC : Mat Nat 2 2 => vcons vec5 (vcons vec5 vnil)
+\func matD : Mat Nat 2 2 => vcons vec8 (vcons vec9 vnil)
+\func matE : Mat Nat 2 2 => vcons vec6 (vcons vec7 vnil)
+
+\func testDiag : diag 0 1 2 = matE => idp
+\func testSum : matAdd (Nat.+) matA matB = matC => idp
+\func testTranspose : transpose matA = matD => idp
+
+\func arr : Vec Nat 3 => vcons 1 (vcons 3 (vcons 2 vnil))
+\func testCoin : coin (lookup arr) = arr => idp
