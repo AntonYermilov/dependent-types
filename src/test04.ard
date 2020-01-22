@@ -24,3 +24,11 @@
 
 \func arr : Vec Nat 3 => vcons 1 (vcons 3 (vcons 2 vnil))
 \func testCoin : coin (lookup arr) = arr => idp
+
+\func tree : Tree Nat 4 => Node 5 (Node 4 Leaf (Node 1 Leaf Leaf)) (Node 2 (Node 3 (Node 5 Leaf Leaf) Leaf) (Node 4 Leaf Leaf))
+\func tree' : Tree Nat 5 => Node 5 (Node 4 Leaf (Node 1 Leaf Leaf)) (Node 2 (Node 3 Leaf Leaf) (Node 4 Leaf Leaf))
+\func tree'' : Tree Nat 5 => Node 5 (Node 4 Leaf (Node 1 Leaf Leaf)) (Node 2 (Node 3 (Node 5 (Node 6 Leaf Leaf) Leaf) Leaf) (Node 4 Leaf Leaf))
+
+\func testTree : height tree = fsuc (fsuc (fsuc (fsuc fzero))) => idp
+\func testTree' : height tree' = fsuc (fsuc (fsuc fzero)) => idp
+\func testTree'' : height tree'' = fsuc (fsuc (fsuc (fsuc (fsuc fzero)))) => idp
