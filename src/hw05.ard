@@ -267,6 +267,7 @@
 \func transport'' {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a'
   => (Jalt (\lam x x' _ => B x -> B x') (\lam _ => id) p) b
 
+-- sigma-contr тоже нужно через Jalt определить
 \func sigma-contr {A : \Type} {a : A} (p : \Sigma (x : A) (a = x)) : (a, idp) = {\Sigma (x : A) (a = x)} p \elim p
   | (x, idp) => idp
 
