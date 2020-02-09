@@ -282,6 +282,4 @@
   {a' : A}
   (p : a = a')
   : B a' p
-  => \let
-    | sc => sigma-contr (a', p)
-  \in transport'' (\lam x => B x.1 x.2) sc b
+  => transport'' (\lam x => B x.1 x.2) (sigma-contr (a', p)) b

@@ -1,0 +1,246 @@
+\import Utils
+\import lect05 (+-comm)
+\import lect06 \hiding (<=-refl)
+\open Nat(+,*)
+
+-- 1. Докажите, что vnil является нейтральным элементом для v++.
+
+\func vnil-rightId {A : \Type} {n : Nat} (xs : Vec A n) : transport (Vec A) (+-comm 0 n) (xs v++ vnil) = xs \elim n, xs
+  | 0, vnil => idp
+  | suc n, vcons a xs => lem (xs v++ vnil) a (+-comm 0 n) *> pmap (vcons a) (vnil-rightId xs)
+  \where
+    \func lem {A : \Type} {n : Nat} (xs : Vec A n) (a : A) {x : Nat} (p : n = x)
+      : transport (Vec A) (pmap suc p) (vcons a xs) = vcons a (transport (Vec A) p xs)
+    \elim p
+      | idp => idp
+
+-- 2. Определите предикат принадлежности элемента списку.
+
+\data In {A : \Type} (a : A) (xs : List A) \elim xs
+  | cons x xs => { yes' (a = x) | maybe' (In a xs)}
+
+-- 3. Докажите эквивалентность четырех различных определений LessOrEq: lessOrEq, lessOrEq', LessOrEq и LessOrEq'.
+
+\func lessOrEq (n m : Nat) => \Sigma (k : Nat) (n + k = m)
+
+\func lessOrEq' (n m : Nat) : \Type
+  | 0, m => \Sigma
+  | suc n, 0 => Empty
+  | suc n, suc m => lessOrEq' n m
+
+\data LessOrEq (n m : Nat) \with
+  | 0, m => z<=n
+  | suc n, suc m => s<=s (LessOrEq n m)
+
+\data LessOrEq' (n m : Nat) \elim m
+  | m => <=-refl (n = m)
+  | suc m => <=-step (LessOrEq' n m)
+
+\func unsuc (n : Nat) : Nat \elim n
+  | 0 => 0
+  | suc n => n
+
+\func leq-impl1 {n m : Nat} (l : lessOrEq n m) : lessOrEq' n m \elim n, m, l
+  | 0, m, l => ()
+  | suc n, 0, (k, eq) => suc/=0 (k + suc n ==< +-comm k (suc n) >== suc n + k ==< eq >== 0 `qed)
+  | suc n, suc m, (k, eq) => leq-impl1 (k, pmap unsuc (suc (n + k) ==< pmap suc (+-comm n k) >==
+                                                       k + suc n   ==< +-comm k (suc n) >==
+                                                       suc n + k   ==< eq >==
+                                                       suc m `qed))
+
+\func leq-impl2 {n m : Nat} (l : lessOrEq' n m) : LessOrEq n m \elim n, m, l
+  | 0, m, () => z<=n
+  | suc n, suc m, l => s<=s (leq-impl2 {n} {m} l)
+
+\func lift {n m : Nat} (l : LessOrEq' n m) : LessOrEq' (suc n) (suc m) \elim m, l
+  | m, <=-refl eq => <=-refl (pmap suc eq)
+  | suc m, <=-step l => <=-step (lift l)
+
+\func leq-impl3 {n m : Nat} (l : LessOrEq n m) : LessOrEq' n m \elim n, m, l
+  | 0, 0, _ => <=-refl idp
+  | 0, suc m, z<=n => <=-step (leq-impl3 {0} {m} z<=n)
+  | suc n, suc m, (s<=s l) => lift (leq-impl3 {n} {m} l)
+
+\func leq-impl4 {n m : Nat} (l : LessOrEq' n m) : lessOrEq n m \elim m, l
+  | m, <=-refl eq => (0, eq)
+  | suc m, <=-step l => \case leq-impl4 {n} {m} l \with {
+    | (k, eq) => (suc k, pmap suc eq)
+  }
+
+-- 4. Определите рефлексивное транзитивное замыкание отношения.
+--    То есть ReflTransClosure R -- это минимальное рефлексивное и транзитивное отношение, содержащее R.
+
+\data ReflTransClosure {A : \Type} (R : A -> A -> \Type) (x y : A)
+  | refl' (x = y)
+  | trans' (z : A) (R x z) (ReflTransClosure R z y)
+
+-- 5. Докажите, что если R уже рекфлексивно и транзитивно, то ReflTransClosure R эквивалентно R.
+
+\func ReflTransClosure-lem {A : \Type} (R : A -> A -> \Type) (refl : \Pi (x : A) -> R x x) (trans : \Pi (x y z : A) -> R x y -> R y z -> R x z)
+  : \Pi (x y : A) -> R x y <-> ReflTransClosure R x y
+  => \lam (x : A) (y : A) => (\lam r => trans' y r (refl' idp), \lam r => helper R refl trans x y r)
+    \where
+      \func helper {A : \Type} (R : A -> A -> \Type) (refl : \Pi (x : A) -> R x x) (trans : \Pi (x y z : A) -> R x y -> R y z -> R x z) (x : A) (y : A) (r : ReflTransClosure R x y) : R x y \elim r
+        | refl' i => transport (R x) i (refl x)
+        | trans' z r1 r2 => trans x z y r1 (ReflTransClosure-lem.helper R refl trans z y r2)
+
+-- 6. Определите предикат Sublist xs ys на списках, означающий "список xs является подсписком ys".
+
+\data Sublist {A : \Type} (xs ys : List A) \elim xs, ys
+  | nil, _ => nilSublist
+  | cons x xs, cons y ys => eqSublist (x = y) (Sublist xs ys)
+  | xs, cons y ys => neqSublist (Sublist xs ys)
+
+-- 7. Докажите, что Sublist (filter xs) xs для любого списка xs.
+
+\func filterIsSublist {A : \Type} (p : A -> Bool) (xs : List A) : Sublist (filter p xs) xs \elim xs
+  | nil => nilSublist
+  | cons x xs => \case p x \as cond
+                 \return Sublist (\case cond \with { true => cons x (filter p xs) | false => filter p xs}) (cons x xs)
+                 \with {
+                   | true => eqSublist idp (filterIsSublist p xs)
+                   | false => neqSublist (filterIsSublist p xs)
+                 }
+
+
+-- 8. Реализуйте любой алгоритм сортировки, используя \case для паттерн матчинга на результате сравнения элементов списка.
+\func sort {A : \Type} (xs : List A) (cmp : A -> A -> Bool) : List A \elim xs
+  | nil => nil
+  | cons x xs => insert x (sort xs cmp) cmp
+    \where
+      \func insert {A : \Type} (x : A) (xs : List A) (cmp : A -> A -> Bool) : List A \elim xs
+        | nil => cons x nil
+        | cons y ys => \case cmp x y \with {
+          | true => cons x (cons y ys)
+          | false => cons y (insert x ys cmp)
+        }
+
+-- 9. Определите filter через if, а не через \case.
+--    Докажите для этой версии filter лемму filter-lem.
+
+\func if {A : \Type} (x : Bool) (t e : A) : A \elim x
+  | true => t
+  | false => e
+
+\func filter' {A : \Type} (p : A -> Bool) (xs : List A) : List A \elim xs
+  | nil => nil
+  | cons x xs => if (p x) (cons x (filter' p xs)) (filter' p xs)
+
+\func filter-lem {A : \Type} (p : A -> Bool) (xs : List A) : length (filter' p xs) Nat.<= length xs \elim xs
+  | nil => Nat.zero<=_
+  | cons x xs => \case p x \as y \return length (if y (cons x (filter' p xs)) (filter' p xs)) Nat.<= suc (length xs) \with {
+    | true => Nat.suc<=suc (filter-lem p xs)
+    | false => <=-helper (filter-lem p xs)
+  }
+
+-- 10. Закончите определение функции \func BoolFuncLem (f : Bool -> Bool) (x : Bool) : f (f (f x)) = f x из лекции.
+
+\func BoolFuncLem (f : Bool -> Bool) (x : Bool) : f (f (f x)) = f x =>
+  \case \elim x, f true \as p, idp : f true = p, f false \with {
+    | true, true, ft, _ => pmap (\lam x => f (f x)) ft *> pmap f ft
+    | true, false, ft, q => pmap (\lam x => f (f x)) ft *> {?}
+    | false, p, ft, q => {?}
+  }
+
+-- 11. Парадокс Рассела показывает, что не существует множества всех множеств.
+-- Если такое множеств существует, то мы можем определить множество B, состоящее из множеств, не содержащих себя.
+-- Тогда B принадлежит себе тогда и только тогда, когда оно себе не принадлежит.
+-- Отсюда следует противоречии.
+-- Теорема Кантора утверждает, что не сущесвует множества X с сюръекцией из X в множество подмножеств X.
+-- Ее доказательство также конструирует утверждение, которое верно тогда и только тогда, когда оно ложно.
+-- Верно, что в общем случае существование такого утверждения влечет противоречие.
+-- Это легко доказать при помощи исключенного третьего, но утверждение верно и без него.
+-- Докажите этот факт.
+
+\func contrProp {A : \Type} (p : A -> Not A) (q : Not A -> A) : Empty
+  => p (q (\lam (x : A) => (p x) x)) (q (\lam (x : A) => (p x) x))
+
+-- 12. Докажите, что предикат isEven разрешим.
+
+\func isEven (n : Nat) => \Sigma (k : Nat) (n = 2 * k)
+
+\func evenT {n : Nat} (p : isEven n) : \Type \elim n, p
+  | 0, _ => \Sigma
+  | 1, _ => Empty
+  | suc (suc n), (0, _) => Empty
+  | suc (suc n), (suc k, eq) => evenT (k, pmap (\lam x => unsuc (unsuc x)) eq)
+
+--\data evenT {n : Nat} (isEven n)
+
+\func one/=even (p : isEven 1) : Empty
+  | (0, eq) => suc/=0 eq
+  | (suc k, eq) => suc/=0 (pmap unsuc (sym eq))
+
+\func suc-suc-odd/=even {n : Nat} (f : isEven n -> Empty) (g : isEven (suc (suc n))) : Empty \elim g
+  | (0, eq) => suc/=0 eq
+  | (suc k, eq) => f (k, pmap (\lam x => unsuc (unsuc x)) eq)
+
+\func isEven-dec' (n : Nat) : Decide (isEven n) \elim n
+  | 0 => yes (0, idp)
+  | 1 => no one/=even
+  | suc (suc n) => \case isEven-dec' n \with {
+    | yes (k, p) => yes ((suc k), pmap (\lam x => suc (suc x)) p)
+    | no f => no (suc-suc-odd/=even f)
+  }
+
+\func isEven-dec : DecPred isEven => isEven-dec'
+
+-- 13. Докажите, что если равенство элементов A разрешимо, то любой список элементов A либо пуст, либо состоит из повторений одного элемента, либо в A существует два различных элемента.
+
+\func repeat {A : \Type} (n : Nat) (a : A) : List A \elim n
+  | 0 => nil
+  | suc n => cons a (repeat n a)
+
+\data Result (A : \Type) (xs : List A)
+  | empty (xs = nil)
+  | repeated (n : Nat) (a : A) (p : xs = repeat n a)
+  | A-is-not-trivial (a a' : A) (p : a = a' -> Empty)
+
+\func T' (x : Nat) : \Type => \case x \with { 0 => \Sigma  | _ => Empty}
+
+\func cons/=nil {A : \Type} {x : A} {xs : List A} (p : cons x xs = nil) : Empty
+  => transport (\lam xs => \case xs \with { nil => \Sigma | _ => Empty}) (sym p) ()
+
+\func pmap2 {A B C : \Type} (f : A -> B -> C) {a a' : A} (p : a = a') {b b' : B} (q : b = b') : f a b = f a' b'
+  => transport (\lam x => f a b = f x b') p (transport (\lam y => f a b = f a y) q idp)
+
+\func lemma {A : \Type} (xs : List A) {dec : DecEq A} : Result A xs \elim xs
+  | nil => empty idp
+  | cons x xs => \case lemma xs {dec} \with {
+    | empty p => repeated 1 x (pmap (cons x) p)
+    | repeated n a p => \case dec x a \with {
+      | yes s => repeated (suc n) a (pmap2 cons s p)
+      | no t => A-is-not-trivial x a t
+    }
+    | A-is-not-trivial a a' p => A-is-not-trivial a a' p
+  }
+
+-- 14. Определите view, представляющий число в виде частного и остатка от деления его на произвольное (неотрицательное) число m.
+--    Реализуйте функцию деления.
+
+\data ModView (m n : Nat)
+  | quot-rem (q r : Nat) (t : r < m) (p : n = q * m + r)
+
+\func zero*-comm {n : Nat} : 0 = 0 * n \elim n
+  | 0 => idp
+  | suc n => zero*-comm {n}
+
+\func mod-view (m n : Nat) (t : 0 < m) : ModView m n \elim m, n
+  | suc m, 0 => quot-rem 0 0 t zero*-comm
+  | suc m, suc n => \case mod-view (suc m) n t \with {
+    | _ => {?}
+  }
+
+\func div (n m : Nat) (t : 0 < m) : Nat => \case mod-view m n t \with { quot-rem q r t p => q }
+
+-- 15. Докажите, что функции FromBoolToDec и FromDecToBool взаимно обратны.
+
+\func bdb {A : \Type} (p : A -> Bool) : FromDecToBool (FromBoolToDec p) = p
+  => {?}
+
+-- Мы не можем доказать, что FromBoolToDec (FromDecToBool P) = P, но мы можем доказать более слабое утверждение: эти предикаты логически эквивалентны.
+-- Для этого введем эквивалентность предикатов.
+
+\func dbd {A : \Type} (P : \Sigma (P : A -> \Type) (DecPred P))
+  : \Pi (x : A) -> (FromBoolToDec (FromDecToBool P)).1 x <-> P.1 x
+  => {?}

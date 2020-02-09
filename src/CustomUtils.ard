@@ -20,6 +20,10 @@
   | 0, _ => z
   | suc n, vcons x xs => f x (foldr f z xs)
 
+\func list-foldr {A B : \Type} (f : A -> B -> B) (z : B) (vec : List A) : B \elim vec
+  | nil => z
+  | cons x xs => f x (list-foldr f z xs)
+
 \func foldl {A B : \Type} {n : Nat} (f : B -> A -> B) (z : B) (vec : Vec A n) : B \elim n, vec
   | 0, _ => z
   | suc n, vcons x xs => foldl f (f z x) xs
