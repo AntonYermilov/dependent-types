@@ -274,6 +274,13 @@
 -- \func sigma-contr {A : \Type} {a : A} (p : \Sigma (x : A) (a = x)) : (a, idp) = {\Sigma (x : A) (a = x)} p
 --   => path (\lam i => (p.2 @ i, coe (\lam j => a = p.2 @ j) idp i))
 
+-- Потому что при i == right получается (p.1, coe (\lam j => a = p.2 @ j) idp right), что является нормальной формой и не эквивалентно p.
+-- Чтобы задать sigma-contr таким способо, можно использовать I.squeeze.
+-- Его определение влечет, что этот терм будет вычисляться как надо.
+-- Also, не смотря на то, что I.squeeze определен в прелюдии, его можно определить через path, @ и coe, не используя ничего другого, но определение не самое очевидное.
+\func sigma-contr' {A : \Type} {a : A} (p : \Sigma (x : A) (a = x)) : (a, idp) = {\Sigma (x : A) (a = x)} p
+  => path (\lam i => (p.2 @ i, path (\lam j => p.2 @ I.squeeze i j)))
+
 \func J'
   {A : \Type}
   {a : A}
