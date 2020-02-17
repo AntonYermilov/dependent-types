@@ -1,0 +1,293 @@
+\import Utils
+\import hw06 (ReflTransClosure)
+\import lect06 (Decide)
+\import lect07
+
+-- 1. Определите функцию swap несколькими способами.
+
+-- При помощи \cowith и доступа к полям.
+\func swap {A B : \Type} (p : Pair A B) : Pair B A \cowith
+  | fst_ => p.snd_
+  | snd_ => p.fst_
+
+-- При помощи \new и паттерн матчинга.
+\func swap' {A B : \Type} (p : Pair A B) : Pair B A
+  | (a, b) => \new Pair { | fst_ => b | snd_ => a }
+
+-- При помощи \new и доступа к полям.
+\func swap'' {A B : \Type} (p : Pair A B) : Pair B A => \new Pair { | fst_ => p.snd_ | snd_ => p.fst_ }
+
+-- 2. Докажите, что swap (swap p) = p.
+
+\func swap-involutive {A B : \Type} (p : Pair A B) : swap (swap p) = p => idp
+
+-- 3. Докажите, что тип PosNat 0 пустой, а тип PosNat 1 нет.
+
+\func zero-isNotPos (p : PosNat 0) : Empty => p.p
+
+\func one-isPos : PosNat 1 => \new PosNat 1 ()
+
+-- 4. Определите \record, состоящий из пар взаимно простых натуральных чисел.
+--    Определите тип, состоящий из натуральных чисел, взаимно простых с 60.
+
+\func gcd (x y : Nat) : Nat => gcd' x x y
+  \where
+    \func gcd' (s x y : Nat) : Nat \elim s, y
+      | 0, _ => 0
+      | _, 0 => x
+      | suc s, y => gcd' s y (Nat.mod x y)
+
+\func coprime (a b : Nat) : Bool => \case gcd a b \with {
+  | 1 => true
+  | _ => false
+}
+
+\record Coprime (a b : Nat) (p : T (coprime a b))
+
+\func coprimes60 : \Type => Coprime 60
+
+-- 5. Докажите, что если равенство элементов A разрешимо, то и равенство элементов List A тоже разрешимо.
+
+\func cons/=nil {A : \Type} {x : A} {xs : List A} (p : cons x xs = nil) : Empty
+  => transport (\lam xs => \case xs \with { nil => \Sigma | _ => Empty}) (sym p) ()
+
+\func pmap2 {A B C : \Type} (f : A -> B -> C) {a a' : A} (p : a = a') {b b' : B} (q : b = b') : f a b = f a' b'
+  => transport (\lam x => f a b = f x b') p (transport (\lam y => f a b = f a y) q idp)
+
+\func notEmpty {A : \Type} (xs : List A) : Bool
+  | nil => false
+  | _ => true
+
+\func head {A : \Type} (xs : List A) (default : A) : A \elim xs
+  | nil => default
+  | cons x xs => x
+
+\func tail {A : \Type} (xs : List A) : List A
+  | nil => nil
+  | cons x xs => xs
+
+\instance ListEq {A : \Type} (dec : Eq A) : Eq (List A) {
+  | decideEq xs ys => decideEq' {A} xs ys dec
+} \where {
+  \func decideEq' {A : \Type} (xs : List A) (ys : List A) (dec : Eq A) : Decide (xs = ys) \elim xs, ys
+    | nil, nil => Decide.yes idp
+    | nil, cons y ys => Decide.no (\lam p => cons/=nil (sym p))
+    | cons x xs, nil => Decide.no cons/=nil
+    | cons x xs, cons y ys => \case dec.decideEq x y, decideEq' xs ys dec \with {
+      | Decide.yes p, Decide.yes q => Decide.yes (pmap2 cons p q)
+      | Decide.no np, Decide.yes q => Decide.no (\lam eq => np (pmap (\lam xs => head xs x) eq))
+      | _, Decide.no nq => Decide.no (\lam eq => nq (pmap tail eq))
+    }
+}
+
+-- 6. Закончите определение класса монад. Этот класс должен содержать все монадные законы и реализовывать все поля из класса функторов.
+
+\class Monad \extends Functor {
+  | return {A : \Type} : A -> F A
+  | \infixl 1 >>= {A B : \Type} : F A -> (A -> F B) -> F B
+  | left-id {A B : \Type} (a : A) (f : A -> F B) : (return a >>= f) = (f a)
+  | right-id {A : \Type} (m : F A) : (m >>= return) = m
+  | >>=-assoc {A B C : \Type} (m : F A) (f : A -> F B) (g : B -> F C) : ((m >>= f) >>= g) = (m >>= (\lam x => f x >>= g))
+  | fmap f x => x >>= (\lam y => return (f y))
+  | fmap-id y => right-id y
+  | fmap-comp f g y => \let
+    | f' => (\lam a => return (f a))
+    | g' => (\lam b => return (g b))
+    | eq => (\lam x => left-id (f x) g')
+    \in sym (
+      ((y >>= f') >>= g') ==< >>=-assoc y f' g' >==
+      (y >>= (\lam x => (f' x) >>= g')) ==< pmap (y >>=) (path (\lam i a => eq a @ i)) >==
+      (y >>= (\lam x => return (g (f x)))) `qed
+    )
+}
+
+-- 7. Определите \instance Monad для Maybe.
+
+\instance MaybeMonad : Monad Maybe
+  | return {A : \Type} (x : A) : Maybe A \elim x {
+    | x => just x
+  }
+
+  | >>= {A B : \Type} (m : Maybe A) (f : A -> Maybe B) : Maybe B \elim m {
+    | just x => f x
+    | nothing => nothing
+  }
+
+  | left-id {A B : \Type} (a : A) (f : A -> Maybe B) : (return a `>>=` f) = (f a) \elim a {
+    | _ => idp
+  }
+
+  | right-id {A : \Type} (m : Maybe A) : (m `>>=` return) = m \elim m {
+    | just x => idp
+    | nothing => idp
+  }
+
+  | >>=-assoc {A B C : \Type} (m : Maybe A) (f : A -> Maybe B) (g : B -> Maybe C)
+    : ((m `>>=` f) `>>=` g) = (m `>>=` (\lam x => f x `>>=` g)) \elim m {
+    | just x => idp
+    | nothing => idp
+  }
+
+-- 8. Определите \instance Monad для State и State'.
+
+\record State (S A : \Type)
+  | state : S -> \Sigma S A
+
+\data State' (S A : \Type)
+  | state' (S -> \Sigma S A)
+\where {
+  \use \coerce fromState {S A : \Type} (s : State S A) : State' S A
+    => state' (state {s})
+  \use \coerce toState {S A : \Type} (s : State' S A) : State S A \elim s
+    | state' s => \new State { | state => s }
+}
+
+\instance StateMonad (S : \Type) : Monad (\lam A => State S A) {
+  | return x => \new State {
+    | state => (\lam s => (s, x))
+  }
+
+  | >>= m f => \new State {
+    | state => \lam s => state {f (state {m} s).2} (state {m} s).1
+  }
+
+  | left-id a f => idp
+  | right-id m => idp
+  | >>=-assoc m f g => idp
+}
+
+\instance StateMonad' (S : \Type) : Monad (\lam A => State' S A) {
+  | return => return' {S}
+  | >>= => >>=' {S}
+  | left-id => left-id' {S}
+  | right-id => right-id' {S}
+  | >>=-assoc => >>=-assoc' {S}
+} \where {
+  \func getState {S A : \Type} (m : State' S A) : S -> \Sigma S A \elim m
+    | state' m => m
+
+  \func return' {S A : \Type} (x : A) : State' S A
+    => state' (\lam s => (s, x))
+
+  \func >>=' {S A B : \Type} (m : State' S A) (f : A -> State' S B) : State' S B
+    => state' (\lam s => getState (f (getState m s).2) (getState m s).1)
+
+  \func left-id' {S A B : \Type} (a : A) (f : A -> State' S B) : (return' a `>>='` f) = (f a)
+    => \case return' a `>>='` f \as l, f a \as r \return l = r \with {
+      | state' l, state' r => {?}
+    }
+
+  \func right-id' {S A : \Type} (m : State' S A) : (m `>>='` return') = m \elim m
+    | state' m => idp
+
+  \func >>=-assoc' {S A B C : \Type} (m : State' S A) (f : A -> State' S B) (g : B -> State' S C)
+  : ((m `>>='` f) `>>='` g) = (m `>>='` (\lam x => f x `>>='` g))
+    => idp
+}
+
+-- 9. Определите \instance Monad для Term.
+
+\instance TermMonad : Monad Term
+  | return {A : \Type} (x : A) : Term A \elim x {
+    | x => var x
+  }
+
+  | >>= {A B : \Type} (m : Term A) (f : A -> Term B) : Term B \elim m {
+    | unit => unit
+    | var x => f x
+    | app x y => app (x `>>=` f) (y `>>=` f)
+    | lam t => lam (t `>>=` (maybeF f))
+  }
+
+  | left-id {A B : \Type} (a : A) (f : A -> Term B) : (return a `>>=` f) = (f a) \elim a {
+    | _ => idp
+  }
+
+  | right-id {A : \Type} (m : Term A) : (m `>>=` return) = m \elim m {
+    | unit => idp
+    | var x => idp
+    | app x y => pmap2 app (right-id x) (right-id y)
+    | lam t => pmap lam (transport (\lam x => (t `>>=` x) = t) maybeF-var-id-ext (right-id t) )
+  }
+
+  | >>=-assoc {A B C : \Type} (m : Term A) (f : A -> Term B) (g : B -> Term C)
+    : ((m `>>=` f) `>>=` g) = (m `>>=` (\lam x => f x `>>=` g)) \elim m {
+    | unit => idp
+    | var x => idp
+    | app x y => pmap2 app (>>=-assoc x f g) (>>=-assoc y f g)
+    | lam t => pmap lam (
+      ((t `>>=` (maybeF f)) `>>=` (maybeF g)) ==< >>=-assoc t (maybeF f) (maybeF g) >==
+      (t `>>=` (\lam x => (maybeF f x) `>>=` (maybeF g))) ==< pmap (t `>>=`) (maybeF-assoc-ext f g) >==
+      (t `>>= (maybeF (\lam x => (f x) `>>=` g))) `qed
+    )
+  }
+\where {
+  \func up {A : \Type} (m : Term A) : Term (Maybe A) \elim m
+    | unit => unit
+    | var x => var (just x)
+    | app x y => app (up x) (up y)
+    | lam t => lam (up t)
+
+  \func maybeF {A B : \Type} (f : A -> Term B) (m : Maybe A) : Term (Maybe B) \elim m
+    | nothing => var nothing
+    | just x => up (f x)
+
+  \func maybeF-var-id {A : \Type} (m : Maybe A) : var m = maybeF var m \elim m
+    | nothing => idp
+    | just x => idp
+
+  \func maybeF-var-id-ext {A : \Type} : var = maybeF {A} var
+    => path (\lam i a => (maybeF-var-id {A} a) @ i)
+
+  \func maybeF-assoc {A B C : \Type} (f : A -> Term B) (g : B -> Term C) (x : Maybe A)
+  : (maybeF f x) `>>=` (maybeF g) = maybeF (\lam y => (f y) `>>=` g) x \elim x
+    | nothing => idp
+    | just x => maybeF-assoc-helper (f x) g
+        \where
+          \func maybeF-assoc-helper {B C : \Type} (x : Term B) (g : B -> Term C)
+          : ((up x) `>>=` (maybeF g)) = (up (x `>>=` g)) \elim x
+            | unit => idp
+            | var x => idp
+            | app x y => pmap2 app (maybeF-assoc-helper x g) (maybeF-assoc-helper y g)
+            | lam t => pmap lam (maybeF-assoc-helper t (maybeF g))
+
+  \func maybeF-assoc-ext {A B C : \Type} (f : A -> Term B) (g : B -> Term C)
+  : (\lam x => (maybeF f x) `>>=` (maybeF g)) = (\lam x => maybeF (\lam y => (f y) `>>=` g) x)
+    => path (\lam i a => (maybeF-assoc f g a) @ i)
+}
+-- t : Term (Maybe A) >>= (maybeF var)
+
+-- 10. Определите отношение многошаговой редукции на Term.
+
+\func Red {V : \Type} (t s : Term V) : \Type => ReflTransClosure Red1 t s
+
+-- 11. Стратегия редукции -- это функция, которая каждому терму сопоставляет либо некоторый терм, к которому он редуцируется за 1 шаг, либо доказательство, что таких термов нет.
+--     Определите любую стратегию редукции.
+
+\func strategy {V : \Type} (t : Term V) : Decide (\Sigma (s : Term V) (Red1 t s)) => {?}
+
+-- 12. Докажите следующую обобщенную лемму о подстановке и выведите из нее обычную версию: если Г, x : A |- b : B и Г |- a : A, то Г |- b[a/x] : B.
+
+--\func substLem {U V : \Type} (ctx : U -> Type) (b : Term U) (B : Type) (h : hasType ctx b B)
+--               (ctx' : V -> Type) (a : U -> Term V) (h' : \Pi (u : U) -> hasType ctx' (a u) (ctx u))
+--  : hasType ctx' (b >>= a) B
+--  => {?}
+
+\func substLem1 => {?}
+
+-- 13. Докажите, что если Г |- a : A и Red a a', то Г |- a' : A
+
+\func redLem {V : \Type} {ctx : V -> Type} {a a' : Term V} (r : Red a a') {A : Type} (h : hasType ctx a A)
+  : hasType ctx a' A
+  => {?}
+
+-- 14. Закончите доказательство утверждения, что все типизируемые термы достижимы.
+
+-- Это более общее утверждение необходимо для усиления индукционной гипотезы.
+-- Для его доказательства потребуется вспомогательная лемма, которая говорит, что если термы a и b достижимы, и b[a/x] лежит в интерпретации B, то и (\x.b) a лежит в ней.
+--\func typeableInterp {V : \Type} (ctx : V -> Type) (env : V -> Term V) (C : \Pi (v : V) -> Interp (ctx v) (env v)) (t : Term V) (T : Type) (p : hasType ctx t T)
+--  : Interp T (t >>= env) => {?}
+
+-- Это утверждение легко следует из предыдущего.
+\func typeableInterpId {V : \Type} (ctx : V -> Type) (t : Term V) (T : Type) (p : hasType ctx t T)
+  : Interp T t => {?}
