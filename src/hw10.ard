@@ -1,0 +1,76 @@
+\import lect10
+\import Utils \hiding (transport,Or,inl,inr)
+
+-- 1. Тип Dec A лежит во вселенной \Set0. Сделайте, чтобы он лежал в \Prop, используя \use \level.
+
+\data Dec (A : \Prop)
+  | yes A
+  | no (A -> Empty)
+  \where {
+    \use \level dataIsProp {A : \Prop} (d1 d2 : Dec A) : d1 = d2 \elim d1, d2
+      | yes a1, yes a2 => pmap yes (pathInProp a1 a2)
+      | yes a, no _x => absurd (_x a)
+      | no _x, yes a => absurd (_x a)
+      | no _x1, no _x2 => pmap no (pathInProp _x1 _x2)
+  }
+
+\func testDec : \Prop -> \Prop => Dec
+
+-- 2. Докажите, что если A : \Prop, то Trunc A эквивалентен A.
+
+\func \infix 1 <-> (A B : \Type) => \Sigma (A -> B) (B -> A)
+
+\func trunc-prop {A : \Prop} : Trunc A <-> A => (left, right)
+  \where {
+    \func left {A : \Prop} (a : Trunc A) : A \elim a
+      | trunc a => a
+    \func right {A : \Prop} (a : A) : Trunc A => trunc a
+  }
+
+-- 3. Докажите следующий закон де Моргана.
+
+\func deMorgan (A B C : \Prop) : (\Sigma A (B `Or` C)) <-> ((\Sigma A B) `Or` (\Sigma A C)) => (left, right)
+  \where {
+    \func left {A B C : \Prop} (p : \Sigma A (B `Or` C)) : ((\Sigma A B) `Or` (\Sigma A C)) \elim p
+      | (a, b) => \case b \with {
+        | inl l => inl (a, l)
+        | inr r => inr (a, r)
+      }
+    \func right {A B C : \Prop} (p : ((\Sigma A B) `Or` (\Sigma A C))) : \Sigma A (B `Or` C) \elim p
+      | inl a => (a.1, inl a.2)
+      | inr b => (b.1, inr b.2)
+  }
+
+-- 4. Определите элиминатор для Or через Or-rec, не используя паттерн матчинг на Or.
+
+\func Or-elim {A B : \Prop} (C : Or A B -> \Prop)
+              (f : \Pi (x : A) -> C (inl x)) (g : \Pi (y : B) -> C (inr y))
+              (p : A `Or` B) : C p => {?}
+
+-- 5. Тип С называется когенератором, если для любых множеств A и B и любых функция f,g : A -> B верно, что если h `o` f = h `o` g для всех h : B -> C, то f = g.
+--    Докажите, что \Prop является когенератором.
+
+\func \fixr 9 o {A B C : \Type} (g : B -> C) (f : A -> B) => \lam a => g (f a)
+
+\func isCogenerator (C : \Type) => \Pi {A B : \Set} (f g : A -> B) (p : \Pi (h : B -> C) -> h `o` f = h `o` g) -> f = g
+
+\func PropIsCogenerator : isCogenerator \Prop => {?}
+
+-- 6. Докажите, что тип утверждений является множеством.
+
+\func prop-isSet : isSet \Prop => {?}
+
+-- 7. Докажите, что (Bool = Bool) = Bool.
+
+\func BoolAut : (Bool = Bool) = Bool => {?}
+
+-- 8. Докажите, что (n+m)-элементное множество равно размеченному объединению n- и m-элементных множеств.
+
+-- 9. Тип X называется инъективным, если для любой функции f : A -> X и любой инъекции i : A -> B сущесвует функция l : B -> X такая, что l `o` i = f.
+--    Докажите, что \Prop инъективен.
+
+\func isInj {A B : \Type} (f : A -> B) => \Pi (x y : A) -> f x = f y -> x = y
+
+\func isInjective (X : \Type) => \Pi {A B : \Type} (f : A -> X) (i : A -> B) (p : isInj i) -> \Sigma (l : B -> X) (l `o` i = f)
+
+\func Prop-isInjective : isInjective \Prop => {?}

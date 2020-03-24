@@ -1,0 +1,110 @@
+\import Prelude
+\import lect06 (Decide)
+\import lect08
+\import Utils
+\open Nat(+,*)
+
+-- 1. Укажите явно чему равен уровень в каждом из вызовов id' ниже.
+--    Напишите явно чему равны типы всех функций idTest*.
+
+\func id' {A : \Type} (a : A) => a
+
+\func idTest1 : \Pi (A : \Type \lp) -> A -> A => id' (\level (\suc (\lp)) _) (id' (\level (\suc \lp) _) id)
+\func idTest2 : \Type \lp -> \Type \lp => id' (\level (\suc \lp) _) Maybe
+\func idTest3 : \Type (\suc \lp) => id' (\level (\suc (\suc \lp)) _) Functor
+\func idTest4 : \Type (\suc \lp) => id' (\level (\suc (\suc \lp)) _) (Functor Maybe)
+\func idTest5 (f : \Pi {A B : \Type} -> (A -> B) -> Maybe A -> Maybe B) : \Type \lp => id' (\suc \lp) (Functor Maybe f)
+
+-- 2. Определите div через Nat-ind.
+
+
+--\data Less (x y : Nat) \elim x, y
+--  | 0, suc y => zero<suc
+--  | suc x, suc y => suc<suc (Less x y)
+
+
+--\func div' (n k : Nat) (p : 0 < k) => div'' n k p
+--  \where
+--    \func div'' (n k : Nat) (p : 0 < k) : Nat \elim n, k
+--      | 0, _ => 0
+--      | suc n, suc k => \case n `less` k \with {
+--          | true => 0
+--          | false => (suc (div'' (n `dec` k) (suc k) p))
+--        }
+
+--\data \infix 4 _<_ (n m : Nat) \with
+--  | 0, suc m => zero<suc_
+--  | suc n, suc m => suc<suc_ (n _<_ m)
+--
+--\func unsuc-less {n m : Nat} (p : suc n _<_ suc m) : n _<_ m \elim p
+--  | suc<suc_ n<m => n<m
+--
+--\func not-nat<zero (n : Nat) (p : n _<_ 0) : Empty => \case p \with {}
+--
+--\func decideLess (n m : Nat) : Decide (n _<_ m)
+--  | 0, suc m => Decide.yes zero<suc_
+--  | n, 0 => Decide.no (\lam n<0 => not-nat<zero n n<0)
+--  | suc n, suc m => \case decideLess n m \with {
+--    | Decide.yes n<m => Decide.yes (suc<suc_ n<m)
+--    | Decide.no not-n<m => Decide.no (\lam sucn<sucm => not-n<m (unsuc-less sucn<sucm))
+--  }
+--
+--\func \infixl 6 - (x y : Nat) : Nat \elim x, y
+--  | x, 0 => x
+--  | 0, _ => 0
+--  | suc x, suc y => x - y
+--
+--\func dec-lemma (n k : Nat) : suc n - suc k _<_ suc n
+--  | 0, 0 => zero<suc_
+--  | 0, k => {?}
+--  | suc n, 0 => suc<suc_ (
+--      \case dec-lemma n 0 \with {
+--        | _ => {?}
+----        | zero<suc_ => {?}
+----        | suc<suc_ n<sucn => {?}
+--      }
+--    )
+--  | suc n, suc k => {?}
+--
+--
+--\func div' (n k : Nat) (p : 0 _<_ k) : Nat \elim n
+--  | 0 => 0
+--  | suc n => \case decideLess (suc n) k \with {
+--      | Decide.yes n<k => 0
+--      | Decide.no not-n<k => suc (div' (suc n - k) k p)
+--    }
+--
+--\func div (n k : Nat) (p : 0 _<_ k) : Nat
+--  => Nat-ind (\lam _ => Nat) (\lam x => {?}) n
+---- r (n - k) (\lam x x<n-k => div x)
+
+-- 3. Докажите следующий принцип индукции для списков.
+
+\func List-ind
+  {A : \Type}
+  (E : List A -> \Type)
+  (r : \Pi (xs : List A) -> (\Pi (ys : List A) -> length ys < length xs -> E ys) -> E xs)
+  (xs : List A) : E xs => aux E r xs (suc (length xs)) <=-refl
+    \where {
+      \func aux
+        {A : \Type}
+        (E : List A -> \Type)
+        (r : \Pi (xs : List A) -> (\Pi (ys : List A) -> length ys < length xs -> E ys) -> E xs)
+        (xs : List A) (n : Nat) (p : length xs < n) : E xs \elim xs, n, p
+        | nil, _, _ => r nil (\lam ys m => \case m \with {})
+        | cons a l, suc n, Nat.suc<=suc < => r (cons a l) (\lam ys m => aux E r ys n (<=-trans m <))
+
+      --      | cons x xs, suc<=suc m<=n => r m (\lam k k<m => aux E r n k (<=-trans k<m m<=n))
+    }
+
+
+--  \elim xs
+--  | nil => r nil (\lam ys _<0 => \case _<0 \with {})
+--  | cons x xs => r (cons x xs) (\lam ys ys<xxs => List-ind E r ys)
+
+-- 4. Реализуйте функцию filter и докажите ее корректность, то есть, что выполнены следующие условия:
+--    * filter p xs является подсписком xs
+--    * Все элементы filter p xs удовлетворяют предикату p
+--    * Любой подсписок xs с тем же свойством является подсписком filter p xs
+
+-- 5. Бонусное задание: докажите корректность любого алгоритма сортировки, отличного от сортировки вставками.
